@@ -171,27 +171,38 @@ makeshop byGMOでショップデザインを行うスキル。
 
 フェーズ3・フェーズ4の両方で使用する共通手順です。`.cdar` を生成したいタイミングで以下を実行します。
 
-1. 圧縮用の一時フォルダにコピーし、文字コードを EUC-JP に変換してから `.cdar` ファイルを生成する。編集中のファイル（`new_design_set/`）は UTF-8 のまま保持し、圧縮するファイルだけを EUC-JP にする。以下のコマンドを実行する
+1. 圧縮用の一時フォルダにコピーし、文字コードを EUC-JP に変換してから `.cdar` ファイルを生成する。編集中のファイル（`new_design_set/`）は UTF-8 のまま保持し、圧縮するファイルだけを EUC-JP にする。以下のスクリプトを `build_cdar.sh` として作業フォルダの親（`new_design_set/` と同じ階層）に保存し、`bash build_cdar.sh` で実行する（`read -d` とプロセス置換を使うため `sh` ではなく `bash` で実行する）。
 
     ```bash
-    # 1. 圧縮用の一時フォルダを作り、全ファイルをコピー
+    #!/usr/bin/env bash
+    # 1. 圧縮用の一時フォルダを作り、全ファイルをコピー（古い .cdar も消す）
     rm -rf .build
+    rm -f new_design_set.cdar
     cp -r new_design_set .build
 
     # 2. 一時フォルダ内の HTML / CSS / JS を一括で EUC-JP に変換
-    find .build -type f \( -name "*.html" -o -name "*.css" -o -name "*.js" \) -print0 |
+    failed=0
     while IFS= read -r -d '' file; do
-      iconv -f UTF-8 -t EUC-JP "$file" > "$file.tmp" && mv "$file.tmp" "$file"
-    done
+      iconv -f UTF-8 -t EUC-JP "$file" > "$file.tmp" && mv "$file.tmp" "$file" || {
+        echo "EUC-JP に変換できない文字があります: ${file#.build/}"
+        failed=1
+      }
+    done < <(find .build -type f \( -name "*.html" -o -name "*.css" -o -name "*.js" \) -print0)
 
-    # 3. .cdar に圧縮
+    # 3. 変換に失敗したファイルが1つでもあれば、.cdar を作らずエラーで終了する
+    if [ "$failed" -eq 1 ]; then
+      echo "上記ファイルの文字を EUC-JP で表現できる文字に直してから、もう一度実行してください。"
+      rm -rf .build
+      exit 1
+    fi
+
+    # 4. .cdar に圧縮して、一時フォルダを削除
     (cd .build && zip -r ../new_design_set.cdar .)
-
-    # 4. 一時フォルダを削除
+    echo "new_design_set.cdar を生成しました。"
     rm -rf .build
     ```
 
-   EUC-JP に変換できない文字が含まれていて `iconv` がエラーになる場合は、`references/troubleshooting.md` を参照してください。
+   `EUC-JP に変換できない文字があります` と表示されて `.cdar` が生成されなかった場合は、表示されたファイルの文字を EUC-JP で表現できる文字に置き換えます。どの文字が使えないか・何に置き換えるかは `references/troubleshooting.md` を参照してください。
 
 2. 生成した `new_design_set.cdar` ファイルを管理画面からインポートする
 
