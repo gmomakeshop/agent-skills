@@ -73,6 +73,10 @@ makeshop byGMOでショップデザインを行うスキル。
         └── xxx.html                    HTMLの定義のみ。CSS、JavaScriptは定義できない。
 ```
 
+## セットアップ
+
+デザインを始める前に、Node.js・ブラウザ操作ツール・MCP サーバーを設定します。設定手順は `references/setup-reference.md` を参照してください。
+
 ## デザイン手順
 
 このスキルは次の4フェーズを **必ずこの順番で** 実行します。各フェーズは前のフェーズの成果物を入力にするため、途中を飛ばすと後段が成立しません。
@@ -90,6 +94,8 @@ makeshop byGMOでショップデザインを行うスキル。
 ### フェーズ2: DESIGN.md の作成
 
 次のクリエイターモードデザインファイルの作成に進む前に、必ず `DESIGN.md` と `theme.css` の両方を生成し終えてください。
+
+Node.js を用意していない場合は、手順2・3の `npx` を実行できません。その場合は `DESIGN.md` を手動で作成し、`theme.css` も手動で書き出してください。
 
 1. `https://github.com/google-labs-code/design.md` を参考に、`DESIGN.md` を作成します。フェーズ1で決定したデザイン方針（色・フォント・余白・角丸・トーンなど）が反映されるように記述します。
 
@@ -171,38 +177,24 @@ makeshop byGMOでショップデザインを行うスキル。
 
 フェーズ3・フェーズ4の両方で使用する共通手順です。`.cdar` を生成したいタイミングで以下を実行します。
 
-1. 圧縮用の一時フォルダにコピーし、文字コードを EUC-JP に変換してから `.cdar` ファイルを生成する。編集中のファイル（`new_design_set/`）は UTF-8 のまま保持し、圧縮するファイルだけを EUC-JP にする。以下のスクリプトを `build_cdar.sh` として作業フォルダの親（`new_design_set/` と同じ階層）に保存し、`bash build_cdar.sh` で実行する（`read -d` とプロセス置換を使うため `sh` ではなく `bash` で実行する）。
+スクリプトはこのスキルの `scripts/` にあります。作業フォルダ（`new_design_set/`）の親で実行し、引数に作業フォルダを渡します。以降の例では `<スキル>` をこのスキルのパスに読み替えてください。
+
+1. `build.sh` で `.cdar` を生成する。EUC-JP に変換して圧縮し、カレントフォルダに `new_design_set.cdar` を作ります。
 
     ```bash
-    #!/usr/bin/env bash
-    # 1. 圧縮用の一時フォルダを作り、全ファイルをコピー（古い .cdar も消す）
-    rm -rf .build
-    rm -f new_design_set.cdar
-    cp -r new_design_set .build
-
-    # 2. 一時フォルダ内の HTML / CSS / JS を一括で EUC-JP に変換
-    failed=0
-    while IFS= read -r -d '' file; do
-      iconv -f UTF-8 -t EUC-JP "$file" > "$file.tmp" && mv "$file.tmp" "$file" || {
-        echo "EUC-JP に変換できない文字があります: ${file#.build/}"
-        failed=1
-      }
-    done < <(find .build -type f \( -name "*.html" -o -name "*.css" -o -name "*.js" \) -print0)
-
-    # 3. 変換に失敗したファイルが1つでもあれば、.cdar を作らずエラーで終了する
-    if [ "$failed" -eq 1 ]; then
-      echo "上記ファイルの文字を EUC-JP で表現できる文字に直してから、もう一度実行してください。"
-      rm -rf .build
-      exit 1
-    fi
-
-    # 4. .cdar に圧縮して、一時フォルダを削除
-    (cd .build && zip -r ../new_design_set.cdar .)
-    echo "new_design_set.cdar を生成しました。"
-    rm -rf .build
+    bash <スキル>/scripts/build.sh new_design_set
     ```
 
-   `EUC-JP に変換できない文字があります` と表示されて `.cdar` が生成されなかった場合は、表示されたファイルの文字を EUC-JP で表現できる文字に置き換えます。どの文字が使えないか・何に置き換えるかは `references/troubleshooting.md` を参照してください。
+    Windows では PowerShell 版を使います。
+
+    ```bash
+    powershell -NoProfile -ExecutionPolicy Bypass -File <スキル>/scripts/build.ps1 new_design_set
+    ```
+
+    エラーが出た場合は `.cdar` を生成せずに終了します。以下のとおり修正して、生成できるまで繰り返します。
+
+    - `EUC-JP に変換できない文字があります` … 表示されたファイルの文字を EUC-JP で表現できる文字に置き換えます。どの文字が使えないか・何に置き換えるかは `references/troubleshooting.md` を参照してください。
+    - `config.json は UTF-8 で保存してください` … `config.json` を UTF-8 で保存し直します。
 
 2. 生成した `new_design_set.cdar` ファイルを管理画面からインポートする
 
